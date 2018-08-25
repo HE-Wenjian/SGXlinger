@@ -1,0 +1,201 @@
+From 6b458c33d18d496a07087f133d7cebac2c735d58 Mon Sep 17 00:00:00 2001
+From: Wenjian HE <wheac@connect.ust.hk>
+Date: Wed, 3 Jan 2018 21:01:52 +0800
+Subject: [PATCH] SGXlinger: 	1. add lapic hooks in apic.c. 	2. instrument
+ the interrupt entry point in entry_64.S. 	3. add variables in kernel for
+ tsc record. 	4. add a mark to kernel version name through changelog.
+
+---
+ arch/x86/entry/entry_64.S        | 75 +++++++++++++++++++++++++++++++++++++++-
+ arch/x86/include/asm/processor.h |  4 +++
+ arch/x86/kernel/apic/apic.c      | 34 ++++++++++++++++--
+ debian.hwe/changelog             |  2 +-
+ 4 files changed, 111 insertions(+), 4 deletions(-)
+
+diff --git a/arch/x86/entry/entry_64.S b/arch/x86/entry/entry_64.S
+index 02fff3e..6689560 100644
+--- a/arch/x86/entry/entry_64.S
++++ b/arch/x86/entry/entry_64.S
+@@ -593,6 +593,67 @@ ENTRY(\sym)
+ END(\sym)
+ .endm
+ 
++/****** SGXlinger Code ******/
++.macro sgxlinger_interrupt func
++	
++	testb	$3, CS(%rsp)
++	jz	1f
++
++	SWAPGS
++
++	TRACE_IRQS_OFF
++
++	CALL_enter_from_user_mode
++
++1:
++	/****** SGXlinger Code ******/
++	movq	%rax, PER_CPU_VAR(sgxlinger_rdtsc)
++	incq	PER_CPU_VAR(sgxlinger_rdtsc_write_count)
++	movq    RAX(%rsp),%rax
++	/****** SGXlinger Code ******/
++
++	movq	%rsp, %rdi
++	incl	PER_CPU_VAR(irq_count)
++	cmovzq	PER_CPU_VAR(irq_stack_ptr), %rsp
++	pushq	%rdi
++	/* We entered an interrupt context - irqs are off: */
++	TRACE_IRQS_OFF
++
++	call	\func	/* rdi points to pt_regs */
++.endm
++
++.macro sgxlinger_apicinterrupt3 num sym do_sym
++ENTRY(\sym)
++	movq    %rax, -6*8(%rsp)
++	movq    %rdx, -4*8(%rsp)
++	rdtsc
++	shlq    $32, %rdx
++	orq  	%rdx, %rax
++	ASM_CLAC
++	movq    -4*8(%rsp),%rdx
++	pushq	$~(\num)
++	
++.Lcommon_\sym:
++	cld
++	ALLOC_PT_GPREGS_ON_STACK
++	movq %r11, 6*8(%rsp)
++	movq %r10, 7*8(%rsp)
++	movq %r9,  8*8(%rsp)
++	movq %r8,  9*8(%rsp)
++
++	movq %rcx, 11*8(%rsp)
++	movq %rdx, 12*8(%rsp)
++	movq %rsi, 13*8(%rsp)
++	movq %rdi, 14*8(%rsp)
++
++	SAVE_EXTRA_REGS
++
++	sgxlinger_interrupt \do_sym
++	jmp	ret_from_intr
++END(\sym)
++.endm
++/****** SGXlinger Code ******/
++
+ #ifdef CONFIG_TRACING
+ #define trace(sym) trace_##sym
+ #define smp_trace(sym) smp_trace_##sym
+@@ -621,6 +682,16 @@ trace_apicinterrupt \num \sym
+ POP_SECTION_IRQENTRY
+ .endm
+ 
++/****** SGXlinger Code ******/
++.macro sgxlinger_apicinterrupt num sym do_sym
++PUSH_SECTION_IRQENTRY
++sgxlinger_apicinterrupt3 \num \sym \do_sym
++trace_apicinterrupt \num \sym
++POP_SECTION_IRQENTRY
++.endm
++/****** SGXlinger Code ******/
++
++
+ #ifdef CONFIG_SMP
+ apicinterrupt3 IRQ_MOVE_CLEANUP_VECTOR		irq_move_cleanup_interrupt	smp_irq_move_cleanup_interrupt
+ apicinterrupt3 REBOOT_VECTOR			reboot_interrupt		smp_reboot_interrupt
+@@ -630,7 +701,9 @@ apicinterrupt3 REBOOT_VECTOR			reboot_interrupt		smp_reboot_interrupt
+ apicinterrupt3 UV_BAU_MESSAGE			uv_bau_message_intr1		uv_bau_message_interrupt
+ #endif
+ 
+-apicinterrupt LOCAL_TIMER_VECTOR		apic_timer_interrupt		smp_apic_timer_interrupt
++// apicinterrupt LOCAL_TIMER_VECTOR		apic_timer_interrupt		smp_apic_timer_interrupt
++sgxlinger_apicinterrupt LOCAL_TIMER_VECTOR	apic_timer_interrupt		smp_apic_timer_interrupt
++
+ apicinterrupt X86_PLATFORM_IPI_VECTOR		x86_platform_ipi		smp_x86_platform_ipi
+ 
+ #ifdef CONFIG_HAVE_KVM
+diff --git a/arch/x86/include/asm/processor.h b/arch/x86/include/asm/processor.h
+index 63def95..27a7b5a 100644
+--- a/arch/x86/include/asm/processor.h
++++ b/arch/x86/include/asm/processor.h
+@@ -321,6 +321,10 @@ struct orig_ist {
+ };
+ 
+ #ifdef CONFIG_X86_64
++DECLARE_PER_CPU(u64, sgxlinger_rdtsc);
++DECLARE_PER_CPU(u64, sgxlinger_rdtsc_write_count);
++
++
+ DECLARE_PER_CPU(struct orig_ist, orig_ist);
+ 
+ union irq_stack_union {
+diff --git a/arch/x86/kernel/apic/apic.c b/arch/x86/kernel/apic/apic.c
+index 076c315..4feed78 100644
+--- a/arch/x86/kernel/apic/apic.c
++++ b/arch/x86/kernel/apic/apic.c
+@@ -60,6 +60,22 @@ unsigned int num_processors;
+ 
+ unsigned disabled_cpus;
+ 
++
++/****** SGXlinger Code ******/
++int kern_apic_attack_target_cpu=-1;
++EXPORT_SYMBOL_GPL(kern_apic_attack_target_cpu);
++
++void (*kern_apic_interrupt_hook) (u64)=NULL;
++EXPORT_SYMBOL_GPL(kern_apic_interrupt_hook);
++
++u64 (*kern_apic_next_deadline_hook) (void)=NULL;
++EXPORT_SYMBOL_GPL(kern_apic_next_deadline_hook);
++
++DEFINE_PER_CPU(u64, sgxlinger_rdtsc); // Step 6: record Time B
++DEFINE_PER_CPU(u64, sgxlinger_rdtsc_write_count); // Just out of caution
++/****** SGXlinger Code ******/
++
++
+ /* Processor that is doing the boot up */
+ unsigned int boot_cpu_physical_apicid = -1U;
+ EXPORT_SYMBOL_GPL(boot_cpu_physical_apicid);
+@@ -474,8 +490,14 @@ static int lapic_next_deadline(unsigned long delta,
+ {
+ 	u64 tsc;
+ 
+-	tsc = rdtsc();
+-	wrmsrl(MSR_IA32_TSC_DEADLINE, tsc + (((u64) delta) * TSC_DIVISOR));
++	if(smp_processor_id() != kern_apic_attack_target_cpu
++		|| kern_apic_next_deadline_hook == NULL){
++		tsc = rdtsc();
++		wrmsrl(MSR_IA32_TSC_DEADLINE, tsc + (((u64) delta) * TSC_DIVISOR));
++	}else{
++		wrmsrl(MSR_IA32_TSC_DEADLINE, kern_apic_next_deadline_hook());
++	}
++
+ 	return 0;
+ }
+ 
+@@ -909,6 +931,14 @@ static void local_apic_timer_interrupt(void)
+ 	int cpu = smp_processor_id();
+ 	struct clock_event_device *evt = &per_cpu(lapic_events, cpu);
+ 
++	if(cpu == kern_apic_attack_target_cpu && kern_apic_interrupt_hook!=NULL){
++		if(this_cpu_read_stable(sgxlinger_rdtsc_write_count)!=1){
++			printk(KERN_WARNING "[SGXlinger_in_kern] apic: sgxlinger_rdtsc_write_count!=1 .\n");
++		}
++		kern_apic_interrupt_hook(this_cpu_read_stable(sgxlinger_rdtsc));
++	}
++	__this_cpu_write(sgxlinger_rdtsc_write_count,0);
++
+ 	/*
+ 	 * Normally we should not be here till LAPIC has been initialized but
+ 	 * in some cases like kdump, its possible that there is a pending LAPIC
+diff --git a/debian.hwe/changelog b/debian.hwe/changelog
+index 42daa8c..c9cfdc5 100644
+--- a/debian.hwe/changelog
++++ b/debian.hwe/changelog
+@@ -1,4 +1,4 @@
+-linux-hwe (4.8.0-52.55~16.04.1) xenial; urgency=low
++linux-hwe (4.8.0-52.55~16.04.1~SGXlinger) xenial; urgency=low
+ 
+   * linux-hwe: 4.8.0-52.55~16.04.1 -proposed tracker (LP: #1686978)
+ 
+-- 
+2.7.4
+
