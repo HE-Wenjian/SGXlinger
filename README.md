@@ -80,7 +80,13 @@ In the folder, you will see the following files.
 | `monitor_data`   | R  | This file stores the SGXlinger measurements in binary form. <br>See `retrieve_sgxlinger_data/retrieve_data.c` in this repository to learn how to read and parse the data.
 
 
-#### Usage examples
+#### Usage example
 
-//TODO
+Try the the demo in the folder `victim_demo`. To run the demo,
+
+```bash
+$ cd victim_demo
+$ ./run_demo.sh
+```
+
 
