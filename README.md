@@ -3,11 +3,14 @@ SGXlinger: A New Side-channel Attack Vector Based on Interrupt Latency against E
 
 This repository contains the source code of SGXlinger -- the interrupt latency attack framework accompanying our ICCD 2018 paper.
 
-> Wenjian He, Wei Zhang, Sanjeev Das and Yang Liu. SGXlinger: A New Side-channel Attack Vector Based on Interrupt Latency against Enclave Execution. In Proceedings of the 36th IEEE International Conference on Computer Design (ICCD'18). (to be appeared)
+> Wenjian He, Wei Zhang, Sanjeev Das and Yang Liu. SGXlinger: A New Side-channel Attack Vector Based on Interrupt Latency against Enclave Execution. In Proceedings of the 36th IEEE International Conference on Computer Design (ICCD'18).
+> 
+> PDF (to be appeared) | [PPT](https://github.com/HE-Wenjian/SGXlinger/raw/master/ICCD_PPT.pdf)
 
-## Overview
+## Abstract
 
-//TODO
+Software Guard Extension (SGX) is a new security feature that has been released in recent Intel commodity processors. It is designed to provide a user program with a strongly shielded environment against other components in the system, including the OS, firmware and hardware peripherals. With SGX, developers can securely deploy critical applications on untrusted remote platforms without the concern of information leakage. However, researchers have found several attacks against SGX, promoting the need for a comprehensive study on the security property of SGX. In this paper, we discover a new attack vector SGXlinger to disclose information inside the protected program. Our attack monitors the interrupt latency of the SGX-protected program. The evaluation shows we can learn coarse-grained information inside the shielded environment. In an experimental setting, we measure that the information leakage rate of the proposed side-channel can reach up to 35 Kbps.
+
 
 ## Building and Running
 
