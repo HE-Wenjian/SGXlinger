@@ -5,21 +5,22 @@ This repository contains the source code of SGXlinger -- the interrupt latency a
 
 > Wenjian He, Wei Zhang, Sanjeev Das and Yang Liu. SGXlinger: A New Side-channel Attack Vector Based on Interrupt Latency against Enclave Execution. In Proceedings of the 36th IEEE International Conference on Computer Design (ICCD'18).
 > 
-> PDF (to be appeared) | [PPT](https://github.com/HE-Wenjian/SGXlinger/raw/master/ICCD_PPT.pdf)
+> [PDF](https://ieeexplore.ieee.org/abstract/document/8615675) | [PPT](https://github.com/HE-Wenjian/SGXlinger/raw/master/ICCD_PPT.pdf)
 
 ## Abstract
 
-Software Guard Extension (SGX) is a new security feature that has been released in recent Intel commodity processors. It is designed to provide a user program with a strongly shielded environment against other components in the system, including the OS, firmware and hardware peripherals. With SGX, developers can securely deploy critical applications on untrusted remote platforms without the concern of information leakage. However, researchers have found several attacks against SGX, promoting the need for a comprehensive study on the security property of SGX. In this paper, we discover a new attack vector SGXlinger to disclose information inside the protected program. Our attack monitors the interrupt latency of the SGX-protected program. The evaluation shows we can learn coarse-grained information inside the shielded environment. In an experimental setting, we measure that the information leakage rate of the proposed side-channel can reach up to 35 Kbps.
-
+Software Guard Extension (SGX) is a new security feature in recent Intel commodity processors. It is designed to provide a user program with a strongly shielded environment against other components in the system, including the OS, firmware and hardware peripherals. With SGX, developers can deploy critical applications on untrusted remote platforms without the concern of information leakage. However, we discover a new attack vector SGXlinger to disclose coarse-grained information inside the protected program. Our attack monitors the interrupt latency of the SGX-protected program. In an experimental setting, we measure that the information leakage rate of the proposed side-channel can reach up to 35 Kbps.
 
 ## Building and Running
 
 #### Prerequisites
 
-1. An SGX-capable machine. Ensure SGX is enabled in BIOS.
+To build and use the SGXlinger tool:
 1. OS: Ubuntu 16.04 LTS
-1. Install the SGX driver, SGX SDK and SGX PSW.
 
+To test SGXlinger tool against SGX programs:
+1. An SGX-capable machine. Ensure SGX is enabled in BIOS.
+1. install the SGX driver, SGX SDK and SGX PSW.
 
 ### 1. Generate and Install the SGXlinger kernel
 
@@ -45,7 +46,7 @@ Software Guard Extension (SGX) is a new security feature that has been released 
     $ sudo reboot
     ```
 
-1. After rebooting, you can use command `$ uname -a` to check if you have booted to a correct kernel. If you use the patch in this repository, the command should display:
+1. After rebooting, you can use command `$ uname -a` to check if you have booted to the correct kernel. If you use the patch in this repository, the command should display:
 
     ```
     $ uname -a
