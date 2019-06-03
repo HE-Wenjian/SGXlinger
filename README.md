@@ -80,7 +80,7 @@ In the folder, you will see the following files.
 |-----|:-----:|------| 
 | `enabled`        | RW | When set to `1`, indicates the latency monitoring is enabled; When set to `0`, the monitoring is disabled.
 | `deadline_delta` | RW | Read/configure the SGXlinger interrupt interval. <br>When `enabled=1`, the LAPIC raises an interrupt every `deadline_delta` clock cycles. *WARN: Setting this value too small may cause kernel panic.*
-| `data_pos`       | RW | Read: report how many measurements are stored in `monitor_data`; <br>Write: write `1` to reset the internal buffer.
+| `data_pos`       | RW | Read: report how many measurements are stored in `monitor_data`; <br>Write: write `0` to reset the internal buffer.
 | `monitor_data`   | R  | This file stores the SGXlinger measurements in binary form. <br>See `retrieve_sgxlinger_data/retrieve_data.c` in this repository to learn how to read and parse the data.
 
 
