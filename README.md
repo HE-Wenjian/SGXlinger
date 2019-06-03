@@ -38,6 +38,12 @@ To test SGXlinger tool against SGX programs:
     $ fakeroot debian/rules clean
     $ fakeroot debian/rules binary-headers binary-generic
     ```
+    This step will produce at least these files in the parent folder:
+    ```
+    -rw-r--r-- [user]  11M linux-headers-4.8.0-52_4.8.0-52.55~16.04.1~SGXlinger_all.deb
+    -rw-r--r-- [user] 997K linux-headers-4.8.0-52-generic_4.8.0-52.55~16.04.1~SGXlinger_amd64.deb
+    -rw-r--r-- [user]  23M linux-image-4.8.0-52-generic_4.8.0-52.55~16.04.1~SGXlinger_amd64.deb
+    ```
 
 1. Install the modified kernel and reboot to it.
     ```bash
@@ -45,6 +51,9 @@ To test SGXlinger tool against SGX programs:
     $ sudo dpkg -i linux-*.deb
     $ sudo reboot
     ```
+
+    If your machine uses GRUB bootloader, you can hold the `SHIFT` key or the `ESC` key during booting to access the bootloader menu. Some users will have to configure grub through the `/etc/default/grub` file.
+    The SGXlinger kernel name is `Ubuntu, with Linux 4.8.0-52-generic` in the GRUB menu.
 
 1. After rebooting, you can use command `$ uname -a` to check if you have booted to the correct kernel. If you use the patch in this repository, the command should display:
 
@@ -78,7 +87,7 @@ In the folder, you will see the following files.
 
 | File Name      | Permission | Description  |
 |-----|:-----:|------| 
-| `enabled`        | RW | When set to `1`, indicates the latency monitoring is enabled; When set to `0`, the monitoring is disabled.
+| `enabled`        | RW | When set to `1`, indicates the latency monitoring is enabled; <br>When set to `0`, the monitoring is disabled.
 | `deadline_delta` | RW | Read/configure the SGXlinger interrupt interval. <br>When `enabled=1`, the LAPIC raises an interrupt every `deadline_delta` clock cycles. *WARN: Setting this value too small may cause kernel panic.*
 | `data_pos`       | RW | Read: report how many measurements are stored in `monitor_data`; <br>Write: write `0` to reset the internal buffer.
 | `monitor_data`   | R  | This file stores the SGXlinger measurements in binary form. <br>See `retrieve_sgxlinger_data/retrieve_data.c` in this repository to learn how to read and parse the data.
