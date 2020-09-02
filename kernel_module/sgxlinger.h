@@ -4,8 +4,8 @@
 #include <linux/types.h>
 
 struct SGXlingerDataEntry{
-	__u64 interrupt_timestamp;
-	__u16 interrupt_delay;
+    __u64 interrupt_timestamp;
+    __u16 interrupt_delay;
 } __attribute__ ((packed));
 
 #define ALLOC_1M     (1024*1024)
